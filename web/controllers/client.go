@@ -159,7 +159,7 @@ func (s *ClientController) Edit() {
 			}
 
 			c.BlackIpList = RemoveRepeatedElement(strings.Split(s.getEscapeString("blackiplist"), "\r\n"))
-			file.GetDb().JsonDb.StoreClientsToJsonFile()
+			file.GetDb().UpdateClient(c)
 		}
 		s.AjaxOk("save success")
 	}
@@ -194,6 +194,7 @@ func (s *ClientController) ChangeStatus() {
 		if client.Status == false {
 			server.DelClientConnect(client.Id)
 		}
+		file.GetDb().UpdateClient(client)
 		s.AjaxOk("modified success")
 	}
 	s.AjaxErr("modified fail")

@@ -228,5 +228,6 @@ func (s *Target) GetRandomTarget() (string, error) {
 type Glob struct {
 	BlackIpList []string
 	ServerUrl   string
+	Version     int64
 	sync.RWMutex
 }

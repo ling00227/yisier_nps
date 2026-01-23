@@ -1,0 +1,62 @@
+<div class="wrapper wrapper-content">
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>集群状态 (Cluster Status)</h5>
+                </div>
+                <div class="ibox-content">
+                    {{if .enabled}}
+                    <div class="alert alert-success">
+                        集群模式已开启 (Cluster Mode Enabled)
+                    </div>
+                    <table class="table table-bordered">
+                        <tr>
+                            <th>当前节点地址 (Current Node)</th>
+                            <td>{{.myAddr}}</td>
+                        </tr>
+                        <tr>
+                            <th>当前配置版本 (Current Config Version)</th>
+                            <td>{{.version}}</td>
+                        </tr>
+                    </table>
+
+                    <h3>节点列表 (Peers)</h3>
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>节点地址 (Address)</th>
+                                <th>状态 (Status)</th>
+                                <th>版本 (Version)</th>
+                                <th>延迟 (Latency)</th>
+                                <th>最后在线时间 (Last Seen)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {{range .peerStatuses}}
+                            <tr>
+                                <td>{{.Address}}</td>
+                                <td>
+                                    {{if .IsOnline}}
+                                    <span class="label label-primary">在线 (Online)</span>
+                                    {{else}}
+                                    <span class="label label-danger">离线 (Offline)</span>
+                                    {{end}}
+                                </td>
+                                <td>{{.Version}}</td>
+                                <td>{{.Latency}}</td>
+                                <td>{{.LastSeen.Format "2006-01-02 15:04:05"}}</td>
+                            </tr>
+                            {{end}}
+                        </tbody>
+                    </table>
+                    {{else}}
+                    <div class="alert alert-warning">
+                        集群模式未开启 (Cluster Mode Disabled)
+                    </div>
+                    {{end}}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

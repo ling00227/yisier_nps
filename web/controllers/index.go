@@ -389,7 +389,7 @@ func (s *IndexController) EditHost() {
 				h.AutoHttps = false
 			}
 
-			file.GetDb().JsonDb.StoreHostToJsonFile()
+			file.GetDb().UpdateHost(h)
 		}
 		s.AjaxOk("modified success")
 	}

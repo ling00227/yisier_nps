@@ -98,6 +98,10 @@
                     <span class="nav-label" langtag="scheme-file"></span></a>
                 </li>
 
+                <li class="{{if eq "cluster" .menu}}active{{end}}">
+                    <a href="{{.web_base_url}}/cluster/index"><i class="fa fa-cubes fa-lg"></i>
+                    <span class="nav-label">集群管理 (Cluster)</span></a>
+                </li>
                 <li class="{{if eq "global" .menu}}active{{end}}">
                 <a href="{{.web_base_url}}/global/index"><i class="fa fa-cog fa-lg"></i>
                     <span class="nav-label" langtag="word-globalparam"></span></a>

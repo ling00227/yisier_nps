@@ -8,14 +8,20 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"ehang.io/nps/lib/common"
 	"ehang.io/nps/lib/crypt"
 	"ehang.io/nps/lib/rate"
 )
 
+type ClusterInterface interface {
+	Sync(op string, data interface{})
+}
+
 type DbUtils struct {
-	JsonDb *JsonDb
+	JsonDb  *JsonDb
+	Cluster ClusterInterface
 }
 
 var (
@@ -93,7 +99,37 @@ func (s *DbUtils) GetIdByVerifyKey(vKey string, addr string) (id int, err error)
 	return 0, errors.New("not found")
 }
 
+func (s *DbUtils) IncreaseVersion() {
+	if s.JsonDb.Global == nil {
+		s.JsonDb.Global = &Glob{}
+	}
+	s.JsonDb.Global.Lock()
+	s.JsonDb.Global.Version = time.Now().UnixNano()
+	s.JsonDb.Global.Unlock()
+	s.JsonDb.StoreGlobalToJsonFile()
+}
+
+func (s *DbUtils) SetVersion(v int64) {
+	if s.JsonDb.Global == nil {
+		s.JsonDb.Global = &Glob{}
+	}
+	s.JsonDb.Global.Lock()
+	if v > s.JsonDb.Global.Version {
+		s.JsonDb.Global.Version = v
+	}
+	s.JsonDb.Global.Unlock()
+	s.JsonDb.StoreGlobalToJsonFile()
+}
+
 func (s *DbUtils) NewTask(t *Tunnel) (err error) {
+	return s.newTask(t, true, 0)
+}
+
+func (s *DbUtils) NewTaskFromCluster(t *Tunnel, version int64) (err error) {
+	return s.newTask(t, false, version)
+}
+
+func (s *DbUtils) newTask(t *Tunnel, sync bool, version int64) (err error) {
 	s.JsonDb.Tasks.Range(func(key, value interface{}) bool {
 		v := value.(*Tunnel)
 		if (v.Mode == "secret" || v.Mode == "p2p") && v.Password == t.Password {
@@ -108,24 +144,88 @@ func (s *DbUtils) NewTask(t *Tunnel) (err error) {
 	t.Flow = new(Flow)
 	s.JsonDb.Tasks.Store(t.Id, t)
 	s.JsonDb.StoreTasksToJsonFile()
+	
+	if sync {
+		s.IncreaseVersion()
+		if s.Cluster != nil {
+			s.Cluster.Sync("NewTask", t)
+		}
+	} else {
+		s.SetVersion(version)
+	}
 	return
 }
 
 func (s *DbUtils) UpdateTask(t *Tunnel) error {
+	return s.updateTask(t, true, 0)
+}
+
+func (s *DbUtils) UpdateTaskFromCluster(t *Tunnel, version int64) error {
+	return s.updateTask(t, false, version)
+}
+
+func (s *DbUtils) updateTask(t *Tunnel, sync bool, version int64) error {
 	s.JsonDb.Tasks.Store(t.Id, t)
 	s.JsonDb.StoreTasksToJsonFile()
+	
+	if sync {
+		s.IncreaseVersion()
+		if s.Cluster != nil {
+			s.Cluster.Sync("UpdateTask", t)
+		}
+	} else {
+		s.SetVersion(version)
+	}
+	return nil
+}
+
+func (s *DbUtils) UpdateGlobal(t *Glob) error {
+	return s.updateGlobal(t, true, 0)
+}
+
+func (s *DbUtils) UpdateGlobalFromCluster(t *Glob, version int64) error {
+	return s.updateGlobal(t, false, version)
+}
+
+func (s *DbUtils) updateGlobal(t *Glob, sync bool, version int64) error {
+	s.JsonDb.Global = t
+	s.JsonDb.StoreGlobalToJsonFile()
+	
+	if sync {
+		s.IncreaseVersion()
+		if s.Cluster != nil {
+			s.Cluster.Sync("UpdateGlobal", t)
+		}
+	} else {
+		s.SetVersion(version)
+	}
 	return nil
 }
 
 func (s *DbUtils) SaveGlobal(t *Glob) error {
-	s.JsonDb.Global = t
-	s.JsonDb.StoreGlobalToJsonFile()
-	return nil
+	return s.UpdateGlobal(t)
 }
 
 func (s *DbUtils) DelTask(id int) error {
+	return s.delTask(id, true, 0)
+}
+
+func (s *DbUtils) DelTaskFromCluster(id int, version int64) error {
+	return s.delTask(id, false, version)
+}
+
+func (s *DbUtils) delTask(id int, sync bool, version int64) error {
 	s.JsonDb.Tasks.Delete(id)
 	s.JsonDb.StoreTasksToJsonFile()
+	
+	if sync {
+		s.IncreaseVersion()
+		if s.Cluster != nil {
+			s.Cluster.Sync("DelTask", id)
+		}
+	} else {
+		s.SetVersion(version)
+	}
 	return nil
 }
 
@@ -151,8 +251,25 @@ func (s *DbUtils) GetTask(id int) (t *Tunnel, err error) {
 }
 
 func (s *DbUtils) DelHost(id int) error {
+	return s.delHost(id, true, 0)
+}
+
+func (s *DbUtils) DelHostFromCluster(id int, version int64) error {
+	return s.delHost(id, false, version)
+}
+
+func (s *DbUtils) delHost(id int, sync bool, version int64) error {
 	s.JsonDb.Hosts.Delete(id)
 	s.JsonDb.StoreHostToJsonFile()
+	
+	if sync {
+		s.IncreaseVersion()
+		if s.Cluster != nil {
+			s.Cluster.Sync("DelHost", id)
+		}
+	} else {
+		s.SetVersion(version)
+	}
 	return nil
 }
 
@@ -170,6 +287,14 @@ func (s *DbUtils) IsHostExist(h *Host) bool {
 }
 
 func (s *DbUtils) NewHost(t *Host) error {
+	return s.newHost(t, true, 0)
+}
+
+func (s *DbUtils) NewHostFromCluster(t *Host, version int64) error {
+	return s.newHost(t, false, version)
+}
+
+func (s *DbUtils) newHost(t *Host, sync bool, version int64) error {
 	if t.Location == "" {
 		t.Location = "/"
 	}
@@ -179,6 +304,38 @@ func (s *DbUtils) NewHost(t *Host) error {
 	t.Flow = new(Flow)
 	s.JsonDb.Hosts.Store(t.Id, t)
 	s.JsonDb.StoreHostToJsonFile()
+	
+	if sync {
+		s.IncreaseVersion()
+		if s.Cluster != nil {
+			s.Cluster.Sync("NewHost", t)
+		}
+	} else {
+		s.SetVersion(version)
+	}
+	return nil
+}
+
+func (s *DbUtils) UpdateHost(t *Host) error {
+	return s.updateHost(t, true, 0)
+}
+
+func (s *DbUtils) UpdateHostFromCluster(t *Host, version int64) error {
+	return s.updateHost(t, false, version)
+}
+
+func (s *DbUtils) updateHost(t *Host, sync bool, version int64) error {
+	s.JsonDb.Hosts.Store(t.Id, t)
+	s.JsonDb.StoreHostToJsonFile()
+	
+	if sync {
+		s.IncreaseVersion()
+		if s.Cluster != nil {
+			s.Cluster.Sync("UpdateHost", t)
+		}
+	} else {
+		s.SetVersion(version)
+	}
 	return nil
 }
 
@@ -206,13 +363,45 @@ func (s *DbUtils) GetHost(start, length int, id int, search string) ([]*Host, in
 }
 
 func (s *DbUtils) DelClient(id int) error {
+	return s.delClient(id, true, 0)
+}
+
+func (s *DbUtils) DelClientFromCluster(id int, version int64) error {
+	return s.delClient(id, false, version)
+}
+
+func (s *DbUtils) delClient(id int, sync bool, version int64) error {
 	s.JsonDb.Clients.Delete(id)
 	s.JsonDb.StoreClientsToJsonFile()
+	
+	if sync {
+		s.IncreaseVersion()
+		if s.Cluster != nil {
+			s.Cluster.Sync("DelClient", id)
+		}
+	} else {
+		s.SetVersion(version)
+	}
 	return nil
 }
 
 func (s *DbUtils) NewClient(c *Client) error {
+	return s.newClient(c, true, 0)
+}
+
+func (s *DbUtils) NewClientFromCluster(c *Client, version int64) error {
+	return s.newClient(c, false, version)
+}
+
+func (s *DbUtils) NewClientNoSync(c *Client) error {
+	return s.newClient(c, false, 0)
+}
+
+func (s *DbUtils) newClient(c *Client, sync bool, version int64) error {
 	var isNotSet bool
+	if c.Cnf == nil {
+		c.Cnf = new(Config)
+	}
 	if c.WebUserName != "" && !s.VerifyUserName(c.WebUserName, c.Id) {
 		return errors.New("web login username duplicate, please reset")
 	}
@@ -241,6 +430,15 @@ reset:
 	}
 	s.JsonDb.Clients.Store(c.Id, c)
 	s.JsonDb.StoreClientsToJsonFile()
+	
+	if sync {
+		s.IncreaseVersion()
+		if s.Cluster != nil {
+			s.Cluster.Sync("NewClient", c)
+		}
+	} else {
+		s.SetVersion(version)
+	}
 	return nil
 }
 
@@ -271,10 +469,27 @@ func (s *DbUtils) VerifyUserName(username string, id int) (res bool) {
 }
 
 func (s *DbUtils) UpdateClient(t *Client) error {
+	return s.updateClient(t, true, 0)
+}
+
+func (s *DbUtils) UpdateClientFromCluster(t *Client, version int64) error {
+	return s.updateClient(t, false, version)
+}
+
+func (s *DbUtils) updateClient(t *Client, sync bool, version int64) error {
 	s.JsonDb.Clients.Store(t.Id, t)
 	if t.RateLimit == 0 {
 		t.Rate = rate.NewRate(0)
 		t.Rate.Start()
+	}
+	
+	if sync {
+		s.IncreaseVersion()
+		if s.Cluster != nil {
+			s.Cluster.Sync("UpdateClient", t)
+		}
+	} else {
+		s.SetVersion(version)
 	}
 	return nil
 }

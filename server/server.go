@@ -14,6 +14,7 @@ import (
 	"ehang.io/nps/bridge"
 	"ehang.io/nps/lib/common"
 	"ehang.io/nps/lib/file"
+	"ehang.io/nps/server/cluster"
 	"ehang.io/nps/server/proxy"
 	"ehang.io/nps/server/tool"
 	"github.com/astaxie/beego"
@@ -38,10 +39,23 @@ func init() {
 func InitFromCsv() {
 	//Add a public password
 	if vkey := beego.AppConfig.String("public_vkey"); vkey != "" {
-		c := file.NewClient(vkey, true, true)
-		file.GetDb().NewClient(c)
-		RunList.Store(c.Id, nil)
-		//RunList[c.Id] = nil
+		var existing *file.Client
+		file.GetDb().JsonDb.Clients.Range(func(key, value interface{}) bool {
+			c := value.(*file.Client)
+			if c.VerifyKey == vkey {
+				existing = c
+				return false
+			}
+			return true
+		})
+
+		if existing != nil {
+			RunList.Store(existing.Id, nil)
+		} else {
+			c := file.NewClient(vkey, true, true)
+			file.GetDb().NewClientNoSync(c)
+			RunList.Store(c.Id, nil)
+		}
 	}
 	//Initialize services in server-side files
 	file.GetDb().JsonDb.Tasks.Range(func(key, value interface{}) bool {
@@ -88,6 +102,7 @@ func DealBridgeTask() {
 
 // start a new server
 func StartNewServer(bridgePort int, cnf *file.Tunnel, bridgeType string, bridgeDisconnect int) {
+	cluster.InitCluster()
 	Bridge = bridge.NewTunnel(bridgePort, bridgeType, common.GetBoolByStr(beego.AppConfig.String("ip_limit")), RunList, bridgeDisconnect)
 	go func() {
 		if err := Bridge.StartTunnel(); err != nil {

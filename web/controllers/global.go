@@ -38,7 +38,7 @@ func (s *GlobalController) Save() {
 			BlackIpList: RemoveRepeatedElement(strings.Split(s.getEscapeString("globalBlackIpList"), "\r\n")),
 			ServerUrl:   s.getEscapeString("serverUrl")}
 
-		if err := file.GetDb().SaveGlobal(t); err != nil {
+		if err := file.GetDb().UpdateGlobal(t); err != nil {
 			s.AjaxErr(err.Error())
 		}
 		s.AjaxOk("save success")
