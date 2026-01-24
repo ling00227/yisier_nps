@@ -29,6 +29,10 @@
                                 }
                             }
                         }
+                        function showLog(btn) {
+                            var err = $(btn).attr('data-error');
+                            alert('错误原因 (Error Reason):\n' + err);
+                        }
                     </script>
 
                     <table class="table table-bordered">
@@ -51,6 +55,7 @@
                                 <th>版本 (Version)</th>
                                 <th>延迟 (Latency)</th>
                                 <th>最后在线时间 (Last Seen)</th>
+                                <th>操作 (Operation)</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -67,6 +72,11 @@
                                 <td>{{.Version}}</td>
                                 <td>{{.Latency}}</td>
                                 <td>{{.LastSeen.Format "2006-01-02 15:04:05"}}</td>
+                                <td>
+                                    {{if not .IsOnline}}
+                                    <button class="btn btn-xs btn-danger" onclick="showLog(this)" data-error="{{.Error}}">查看日志 (View Log)</button>
+                                    {{end}}
+                                </td>
                             </tr>
                             {{end}}
                         </tbody>

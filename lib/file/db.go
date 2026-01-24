@@ -145,7 +145,14 @@ func (s *DbUtils) newTask(t *Tunnel, sync bool, version int64) (err error) {
 	if err != nil {
 		return
 	}
-	t.Flow = new(Flow)
+	if t.Client != nil {
+		if client, err := s.GetClient(t.Client.Id); err == nil {
+			t.Client = client
+		}
+	}
+	if t.Flow == nil {
+		t.Flow = new(Flow)
+	}
 	s.JsonDb.Tasks.Store(t.Id, t)
 	s.JsonDb.StoreTasksToJsonFile()
 	
@@ -156,6 +163,15 @@ func (s *DbUtils) newTask(t *Tunnel, sync bool, version int64) (err error) {
 		}
 	} else {
 		s.SetVersion(version)
+		if NewTaskHandler != nil {
+			if err := NewTaskHandler(t); err != nil {
+				logs.Error("NewTaskHandler execution failed for task %d: %v", t.Id, err)
+			} else {
+				logs.Info("NewTaskHandler executed successfully for task %d", t.Id)
+			}
+		} else {
+			logs.Warn("NewTaskHandler is nil for task %d", t.Id)
+		}
 	}
 	return
 }
@@ -322,7 +338,9 @@ func (s *DbUtils) newHost(t *Host, sync bool, version int64) error {
 	if s.IsHostExist(t) {
 		return errors.New("host has exist")
 	}
-	t.Flow = new(Flow)
+	if t.Flow == nil {
+		t.Flow = new(Flow)
+	}
 	s.JsonDb.Hosts.Store(t.Id, t)
 	s.JsonDb.StoreHostToJsonFile()
 	

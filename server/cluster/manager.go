@@ -20,6 +20,7 @@ type PeerStatus struct {
 	LastSeen time.Time
 	Version  int64
 	Latency  string
+	Error    string
 }
 
 type ClusterManager struct {
@@ -176,6 +177,7 @@ func (c *ClusterManager) checkPeer(peer string) {
 	if err != nil {
 		logs.Warn("Cluster check peer %s failed: %v", peer, err)
 		status.IsOnline = false
+		status.Error = err.Error()
 		return
 	}
 	defer resp.Body.Close()
@@ -183,6 +185,7 @@ func (c *ClusterManager) checkPeer(peer string) {
 	if resp.StatusCode != http.StatusOK {
 		logs.Warn("Cluster check peer %s returned status %d", peer, resp.StatusCode)
 		status.IsOnline = false
+		status.Error = fmt.Sprintf("HTTP Status %d", resp.StatusCode)
 		return
 	}
 
@@ -191,12 +194,14 @@ func (c *ClusterManager) checkPeer(peer string) {
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&res); err == nil {
 		status.IsOnline = true
+		status.Error = ""
 		status.LastSeen = time.Now()
 		status.Version = res.Version
 		status.Latency = time.Since(start).String()
 	} else {
 		logs.Warn("Cluster check peer %s decode failed: %v", peer, err)
 		status.IsOnline = false
+		status.Error = fmt.Sprintf("Decode failed: %v", err)
 	}
 }
 
