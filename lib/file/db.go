@@ -13,6 +13,7 @@ import (
 	"ehang.io/nps/lib/common"
 	"ehang.io/nps/lib/crypt"
 	"ehang.io/nps/lib/rate"
+	"github.com/astaxie/beego/logs"
 )
 
 type ClusterInterface interface {
@@ -27,6 +28,9 @@ type DbUtils struct {
 var (
 	Db   *DbUtils
 	once sync.Once
+	NewTaskHandler    func(t *Tunnel) error
+	UpdateTaskHandler func(t *Tunnel) error
+	DelTaskHandler    func(id int) error
 )
 
 // init csv from file
@@ -165,6 +169,11 @@ func (s *DbUtils) UpdateTaskFromCluster(t *Tunnel, version int64) error {
 }
 
 func (s *DbUtils) updateTask(t *Tunnel, sync bool, version int64) error {
+	if t.Client != nil {
+		if client, err := s.GetClient(t.Client.Id); err == nil {
+			t.Client = client
+		}
+	}
 	s.JsonDb.Tasks.Store(t.Id, t)
 	s.JsonDb.StoreTasksToJsonFile()
 	
@@ -175,6 +184,15 @@ func (s *DbUtils) updateTask(t *Tunnel, sync bool, version int64) error {
 		}
 	} else {
 		s.SetVersion(version)
+		if UpdateTaskHandler != nil {
+			if err := UpdateTaskHandler(t); err != nil {
+				logs.Error("UpdateTaskHandler execution failed for task %d: %v", t.Id, err)
+			} else {
+				logs.Info("UpdateTaskHandler executed successfully for task %d", t.Id)
+			}
+		} else {
+			logs.Warn("UpdateTaskHandler is nil for task %d", t.Id)
+		}
 	}
 	return nil
 }
@@ -225,6 +243,9 @@ func (s *DbUtils) delTask(id int, sync bool, version int64) error {
 		}
 	} else {
 		s.SetVersion(version)
+		if DelTaskHandler != nil {
+			DelTaskHandler(id)
+		}
 	}
 	return nil
 }

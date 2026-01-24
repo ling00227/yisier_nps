@@ -3,6 +3,7 @@ package controllers
 import (
 	"ehang.io/nps/lib/file"
 	"ehang.io/nps/server/cluster"
+	"github.com/astaxie/beego"
 )
 
 type ClusterController struct {
@@ -11,6 +12,7 @@ type ClusterController struct {
 
 func (s *ClusterController) Index() {
 	s.SetInfo("cluster")
+	s.Data["web_base_url"] = beego.AppConfig.String("web_base_url")
 	if cluster.Manager == nil {
 		s.Data["enabled"] = false
 	} else {
@@ -28,4 +30,21 @@ func (s *ClusterController) Index() {
 		}
 	}
 	s.display()
+}
+
+func (s *ClusterController) Sync() {
+	password := s.GetString("password")
+	if password != beego.AppConfig.String("web_password") {
+		s.Data["json"] = map[string]interface{}{"status": 0, "msg": "Password incorrect"}
+		s.ServeJSON()
+		return
+	}
+
+	if cluster.Manager != nil {
+		cluster.Manager.SyncFromPeers(true)
+		s.Data["json"] = map[string]interface{}{"status": 1, "msg": "Sync triggered"}
+	} else {
+		s.Data["json"] = map[string]interface{}{"status": 0, "msg": "Cluster not enabled"}
+	}
+	s.ServeJSON()
 }

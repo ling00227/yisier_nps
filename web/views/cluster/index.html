@@ -9,7 +9,28 @@
                     {{if .enabled}}
                     <div class="alert alert-success">
                         集群模式已开启 (Cluster Mode Enabled)
+                        <button onclick="syncCluster()" class="btn btn-warning btn-xs pull-right" style="margin-top: -5px;">
+                            <i class="fa fa-refresh"></i> 初始化同步 (Sync Now)
+                        </button>
                     </div>
+                    <script>
+                        function syncCluster() {
+                            if(confirm('确定要强制从其他节点拉取配置吗？如果当前节点版本较低，将会被其他节点的配置覆盖。\nAre you sure to sync from peers? This may overwrite current config.')) {
+                                var pwd = prompt("请输入登录密码确认同步操作 (Please enter login password to confirm):");
+                                if (pwd != null) {
+                                    $.post("{{.web_base_url}}/cluster/sync", {password: pwd}, function(data) {
+                                        if (data.status == 1) {
+                                            alert('同步请求已触发 (Sync triggered)');
+                                            location.reload();
+                                        } else {
+                                            alert('失败 (Failed): ' + data.msg);
+                                        }
+                                    });
+                                }
+                            }
+                        }
+                    </script>
+
                     <table class="table table-bordered">
                         <tr>
                             <th>当前节点地址 (Current Node)</th>

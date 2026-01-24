@@ -52,7 +52,7 @@ func InitCluster() {
 
 	Manager = &ClusterManager{
 		Peers:        peers,
-		Secret:       beego.AppConfig.String("cluster_secret"),
+		Secret:       strings.TrimSpace(beego.AppConfig.String("cluster_secret")),
 		Client:       &http.Client{Timeout: 5 * time.Second},
 		MyAddr:       fmt.Sprintf("%s:%s", beego.AppConfig.String("cluster_ip"), beego.AppConfig.String("cluster_port")),
 		PeerStatuses: peerStatuses,
@@ -78,7 +78,7 @@ func (c *ClusterManager) Start() {
 	// Sync from peers on startup
 	go func() {
 		time.Sleep(5 * time.Second) // Wait for other services
-		c.SyncFromPeers()
+		c.SyncFromPeers(false)
 	}()
 
 	logs.Info("Cluster manager starting on port %s", port)
@@ -120,7 +120,7 @@ func (c *ClusterManager) AddPeer(addr string) {
 func (c *ClusterManager) StartHealthCheck() {
 	ticker := time.NewTicker(30 * time.Second)
 	for range ticker.C {
-		c.SyncFromPeers()
+		c.SyncFromPeers(false)
 	}
 }
 
@@ -301,6 +301,7 @@ func (c *ClusterManager) handleSync(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if dp.Secret != c.Secret {
+		logs.Warn("Cluster sync auth failed. Peer %s sent secret '%s', expected '%s'", r.RemoteAddr, dp.Secret, c.Secret)
 		http.Error(w, "Unauthorized", 401)
 		return
 	}
@@ -360,6 +361,7 @@ func (c *ClusterManager) handleSync(w http.ResponseWriter, r *http.Request) {
 
 func (c *ClusterManager) handleVersion(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get("Secret") != c.Secret {
+		logs.Warn("Cluster version auth failed. Peer %s sent secret '%s', expected '%s'", r.RemoteAddr, r.Header.Get("Secret"), c.Secret)
 		http.Error(w, "Unauthorized", 401)
 		return
 	}
@@ -379,6 +381,7 @@ func (c *ClusterManager) handleVersion(w http.ResponseWriter, r *http.Request) {
 
 func (c *ClusterManager) handleDump(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get("Secret") != c.Secret {
+		logs.Warn("Cluster dump auth failed. Peer %s sent secret '%s', expected '%s'", r.RemoteAddr, r.Header.Get("Secret"), c.Secret)
 		http.Error(w, "Unauthorized", 401)
 		return
 	}
@@ -419,7 +422,7 @@ func (c *ClusterManager) handleDump(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(data)
 }
 
-func (c *ClusterManager) SyncFromPeers() {
+func (c *ClusterManager) SyncFromPeers(force bool) {
 	c.checkPeers(true) // Initial check and wait for results
 
 	var maxVer int64
@@ -437,6 +440,16 @@ func (c *ClusterManager) SyncFromPeers() {
 	myVer := int64(0)
 	if file.GetDb().JsonDb.Global != nil {
 		myVer = file.GetDb().JsonDb.Global.Version
+	}
+
+	if force {
+		if bestPeer != "" {
+			logs.Info("Force syncing from peer %s (ver: %d)", bestPeer, maxVer)
+			c.doFullSync(bestPeer)
+		} else {
+			logs.Warn("Force sync failed: no online peers found")
+		}
+		return
 	}
 
 	if maxVer > myVer {

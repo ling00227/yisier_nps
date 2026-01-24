@@ -103,6 +103,37 @@ func DealBridgeTask() {
 // start a new server
 func StartNewServer(bridgePort int, cnf *file.Tunnel, bridgeType string, bridgeDisconnect int) {
 	cluster.InitCluster()
+	
+	// Register cluster handlers
+	file.NewTaskHandler = func(t *file.Tunnel) error {
+		if t.Status {
+			return AddTask(t)
+		}
+		return nil
+	}
+	file.UpdateTaskHandler = func(t *file.Tunnel) error {
+		logs.Info("Cluster update task handler called for task %d, port %d, status %v", t.Id, t.Port, t.Status)
+		if err := CloseServer(t.Id); err != nil {
+			logs.Warn("CloseServer failed for task %d: %v", t.Id, err)
+		} else {
+			logs.Info("CloseServer succeeded for task %d", t.Id)
+		}
+		
+		if t.Status {
+			err := AddTask(t)
+			if err != nil {
+				logs.Error("AddTask failed for task %d: %v", t.Id, err)
+				return err
+			}
+			logs.Info("AddTask succeeded for task %d", t.Id)
+			return nil
+		}
+		return nil
+	}
+	file.DelTaskHandler = func(id int) error {
+		return CloseServer(id)
+	}
+	// and Register cluster handlers
 	Bridge = bridge.NewTunnel(bridgePort, bridgeType, common.GetBoolByStr(beego.AppConfig.String("ip_limit")), RunList, bridgeDisconnect)
 	go func() {
 		if err := Bridge.StartTunnel(); err != nil {
@@ -175,7 +206,21 @@ func NewMode(Bridge *bridge.Bridge, c *file.Tunnel) proxy.Service {
 
 // stop server
 func StopServer(id int) error {
-	//if v, ok := RunList[id]; ok {
+	if err := CloseServer(id); err != nil {
+		return err
+	}
+	if t, err := file.GetDb().GetTask(id); err != nil {
+		return err
+	} else {
+		t.Status = false
+		logs.Info("close port %d,remark %s,client id %d,task id %d", t.Port, t.Remark, t.Client.Id, t.Id)
+		file.GetDb().UpdateTask(t)
+	}
+	return nil
+}
+
+// close server (runtime only)
+func CloseServer(id int) error {
 	if v, ok := RunList.Load(id); ok {
 		if svr, ok := v.(proxy.Service); ok {
 			if err := svr.Close(); err != nil {
@@ -185,14 +230,6 @@ func StopServer(id int) error {
 		} else {
 			logs.Warn("stop server id %d error", id)
 		}
-		if t, err := file.GetDb().GetTask(id); err != nil {
-			return err
-		} else {
-			t.Status = false
-			logs.Info("close port %d,remark %s,client id %d,task id %d", t.Port, t.Remark, t.Client.Id, t.Id)
-			file.GetDb().UpdateTask(t)
-		}
-		//delete(RunList, id)
 		RunList.Delete(id)
 		return nil
 	}
