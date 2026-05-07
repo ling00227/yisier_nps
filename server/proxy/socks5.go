@@ -384,6 +384,15 @@ func (s *Sock5ModeServer) Start() error {
 		// 检查隧道最大连接数
 		if s.task.MaxConn > 0 && int(s.task.NowConn) >= s.task.MaxConn {
 			logs.Warn("task id %d, connections exceed the tunnel limit %d", s.task.Id, s.task.MaxConn)
+			logs.Warn("task id %d, 连接数超过了隧道的最大容量 %d", s.task.Id, s.task.MaxConn)
+			c.Close()
+			return
+		}
+
+		// 检查允许连接时间
+		if !s.task.IsAllowTime() {
+			logs.Warn("task id %d, connection denied: current time is not within allowed time range %s", s.task.Id, s.task.AllowTime)
+			logs.Warn("task id %d, 连接被拒绝：当前时间不在允许的时间范围内 %s", s.task.Id, s.task.AllowTime)
 			c.Close()
 			return
 		}

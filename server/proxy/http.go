@@ -112,6 +112,13 @@ func (s *httpServer) handleTunneling(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 检查允许连接时间
+	if !s.task.IsAllowTime() {
+		logs.Warn("http proxy task id %d, connection denied: current time is not within allowed time range %s", s.task.Id, s.task.AllowTime)
+		http.Error(w, "Service unavailable: outside allowed time range", http.StatusServiceUnavailable)
+		return
+	}
+
 	// 自动 http 301 https
 	if host.AutoHttps && r.TLS == nil {
 		http.Redirect(w, r, "https://"+host.Host+":"+beego.AppConfig.String("https_proxy_port"), http.StatusMovedPermanently)

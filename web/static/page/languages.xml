@@ -356,6 +356,10 @@
 		<zh-CN>最大连接数</zh-CN>
 		<en-US>Maximum connections</en-US>
 	</lang>
+	<lang id="word-allowtime">
+		<zh-CN>允许连接时间</zh-CN>
+		<en-US>Allow Connection Time</en-US>
+	</lang>
 	<lang id="word-maxtunnels">
 		<zh-CN>最大隧道数</zh-CN>
 		<en-US>Maximum tunnels</en-US>
@@ -740,6 +744,14 @@
 	<lang id="info-unrestricted">
 		<zh-CN>留空表示不受限制</zh-CN>
 		<en-US>Empty means to be unrestricted</en-US>
+	</lang>
+	<lang id="info-allowtime">
+		<zh-CN>允许连接的时间段，留空表示不限制</zh-CN>
+		<en-US>Allowed connection time periods, leave empty for no restriction</en-US>
+	</lang>
+	<lang id="info-allowtimeformat">
+		<zh-CN>格式：08:00-12:30（每天）、1 08:00-12:30（周一）、1-5 08:00-12:30（周一到周五）、1 08:00-2 18:00（跨天）</zh-CN>
+		<en-US>Format: 08:00-12:30 (daily), 1 08:00-12:30 (Mon), 1-5 08:00-12:30 (Mon-Fri), 1 08:00-2 18:00 (cross-day)</en-US>
 	</lang>
 
 	<lang id="info-input-whitepass">

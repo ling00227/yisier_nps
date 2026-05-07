@@ -106,7 +106,13 @@ func (s *IndexController) Add() {
 			StripPre:     s.getEscapeString("strip_pre"),
 			ProtoVersion: s.getEscapeString("proto_version"),
 			MaxConn:      s.GetIntNoErr("max_conn"),
+			AllowTime:    s.getEscapeString("allow_time"),
 			Flow:         &file.Flow{},
+		}
+
+		if errMsg := file.ValidateAllowTime(t.AllowTime); errMsg != "" {
+			s.AjaxErr(errMsg)
+			return
 		}
 
 		if t.Port <= 0 {
@@ -161,6 +167,7 @@ func (s *IndexController) Copy() {
 			StripPre:     oldTask.StripPre,
 			ProtoVersion: oldTask.ProtoVersion,
 			MaxConn:      oldTask.MaxConn,
+			AllowTime:    oldTask.AllowTime,
 			Flow:         &file.Flow{},
 		}
 		if !tool.TestServerPort(newTask.Port, newTask.Mode) {
@@ -235,7 +242,15 @@ func (s *IndexController) Edit() {
 			t.StripPre = s.getEscapeString("strip_pre")
 			t.Remark = s.getEscapeString("remark")
 			t.MaxConn = s.GetIntNoErr("max_conn")
+			t.AllowTime = s.getEscapeString("allow_time")
 			t.Target.LocalProxy = s.GetBoolNoErr("local_proxy")
+			
+			// 验证允许连接时间
+			if errMsg := file.ValidateAllowTime(t.AllowTime); errMsg != "" {
+				s.AjaxErr(errMsg)
+				return
+			}
+
 			file.GetDb().UpdateTask(t)
 			server.StopServer(t.Id)
 			server.StartTask(t.Id)

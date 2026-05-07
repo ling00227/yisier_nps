@@ -38,6 +38,7 @@ func NewTunnelModeServer(process process, bridge NetBridge, task *file.Tunnel) *
 // 开始
 func (s *TunnelModeServer) Start() error {
 	return conn.NewTcpListenerAndProcess(s.task.ServerIp+":"+strconv.Itoa(s.task.Port), func(c net.Conn) {
+		// 判断流量和连接数是否超过限制
 		if err := s.CheckFlowAndConnNum(s.task.Client); err != nil {
 			logs.Warn("client id %d, task id %d,error %s, when tcp connection", s.task.Client.Id, s.task.Id, err.Error())
 			c.Close()
@@ -46,9 +47,18 @@ func (s *TunnelModeServer) Start() error {
 
 		logs.Info("task mode %s, port %d, now connection: %d, max connection: %d", s.task.Mode, s.task.Port, s.task.NowConn, s.task.MaxConn)
 
-		// 新增：检查隧道最大连接数
+		// 检查隧道最大连接数
 		if s.task.MaxConn > 0 && int(s.task.NowConn) >= s.task.MaxConn {
 			logs.Warn("task id %d, connections exceed the tunnel limit %d", s.task.Id, s.task.MaxConn)
+			logs.Warn("task id %d, 连接数超过了隧道的最大容量 %d", s.task.Id, s.task.MaxConn)
+			c.Close()
+			return
+		}
+
+		// 检查允许连接时间
+		if !s.task.IsAllowTime() {
+			logs.Warn("task id %d, connection denied: current time is not within allowed time range %s", s.task.Id, s.task.AllowTime)
+			logs.Warn("task id %d, 连接被拒绝：当前时间不在允许的时间范围内 %s", s.task.Id, s.task.AllowTime)
 			c.Close()
 			return
 		}
