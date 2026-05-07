@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"github.com/astaxie/beego/cache"
+	"github.com/astaxie/beego/logs"
 	"github.com/astaxie/beego/utils/captcha"
 	"math/rand"
 	"net"
@@ -55,8 +56,12 @@ func (self *LoginController) Verify() {
 		}
 	}
 	if self.doLogin(username, password, true) {
+		// 登录成功，记录用户名和 IP
+		logs.Info("login success, username: %s, IP: %s", username, self.Ctx.Input.IP())
 		self.Data["json"] = map[string]interface{}{"status": 1, "msg": "login success"}
 	} else {
+		// 登录失败，记录用户名和 IP
+		logs.Warn("login failed, username: %s, IP: %s", username, self.Ctx.Input.IP())
 		self.Data["json"] = map[string]interface{}{"status": 0, "msg": "username or password incorrect"}
 	}
 	self.ServeJSON()
@@ -71,6 +76,8 @@ func (self *LoginController) doLogin(username, password string, explicit bool) b
 			vv.hasLoginFailTimes = 0
 		}
 		if vv.hasLoginFailTimes >= 10 {
+			// 登录IP 被锁定时记录警告
+			logs.Warn("login blocked, too many failed attempts, IP: %s, fail times: %d", ip, vv.hasLoginFailTimes)
 			return false
 		}
 	}

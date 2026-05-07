@@ -142,6 +142,16 @@
                 visible: true//false表示不显示
             },
             {
+                field: 'NowConn',//域值
+                title: '<span langtag="word-connections"></span>',//标题
+                halign: 'center',
+                sortable: true, //启用排序
+                visible: true,//false表示不显示
+                formatter: function (value, row, index) {
+                    return row.NowConn + '/' + row.MaxConn;
+                }
+            },
+            {
                 field: 'address',//域值
                 title: '<span langtag="word-accessaddress"></span>',//标题
                 halign: 'center',

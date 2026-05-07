@@ -94,6 +94,23 @@ func (s *Client) GetConn() bool {
 	return false
 }
 
+// Tunnel 连接管理方法
+func (s *Tunnel) CutConn() {
+	atomic.AddInt32(&s.NowConn, 1)
+}
+
+func (s *Tunnel) AddConn() {
+	atomic.AddInt32(&s.NowConn, -1)
+}
+
+func (s *Tunnel) GetConn() bool {
+	if s.MaxConn == 0 || int(s.NowConn) < s.MaxConn {
+		s.CutConn()
+		return true
+	}
+	return false
+}
+
 func (s *Client) HasTunnel(t *Tunnel) (exist bool) {
 	GetDb().JsonDb.Tasks.Range(func(key, value interface{}) bool {
 		v := value.(*Tunnel)
@@ -157,6 +174,8 @@ type Tunnel struct {
 	ProtoVersion string
 	Target       *Target
 	MultiAccount *MultiAccount
+	NowConn      int32      //当前连接数
+	MaxConn      int        //最大连接数，0表示不限制
 	Health
 	sync.RWMutex
 }

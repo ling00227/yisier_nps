@@ -234,6 +234,10 @@
 		<zh-CN>连接数 (已建立)</zh-CN>
 		<en-US>Connections (establish)</en-US>
 	</lang>
+	<lang id="word-connections">
+		<zh-CN>连接数</zh-CN>
+		<en-US>Connections</en-US>
+	</lang>
 	<lang id="word-connect">
 		<zh-CN>连接</zh-CN>
 		<en-US>Connect</en-US>

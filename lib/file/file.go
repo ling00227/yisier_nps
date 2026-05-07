@@ -47,6 +47,8 @@ func (s *JsonDb) LoadTaskFromJsonFile() {
 		if json.Unmarshal([]byte(v), &post) != nil {
 			return
 		}
+		// 重置为 0 ，防止重启后，连接数不正确
+		post.NowConn = 0
 		if post.Client, err = s.GetClient(post.Client.Id); err != nil {
 			return
 		}

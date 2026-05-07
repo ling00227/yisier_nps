@@ -142,7 +142,7 @@ func (s *Sock5ModeServer) doConnect(c net.Conn, command uint8) {
 	}
 	s.DealClient(conn.NewConn(c), s.task.Client, addr, nil, ltype, func() {
 		s.sendReply(c, succeeded)
-	}, s.task.Flow, s.task.Target.LocalProxy, nil)
+	}, s.task.Flow, s.task.Target.LocalProxy, s.task)
 	return
 }
 
@@ -378,9 +378,19 @@ func (s *Sock5ModeServer) Start() error {
 			c.Close()
 			return
 		}
+
+		logs.Info("task mode %s, port %d, now connection: %d, max connection: %d", s.task.Mode, s.task.Port, s.task.NowConn, s.task.MaxConn)
+
+		// 检查隧道最大连接数
+		if s.task.MaxConn > 0 && int(s.task.NowConn) >= s.task.MaxConn {
+			logs.Warn("task id %d, connections exceed the tunnel limit %d", s.task.Id, s.task.MaxConn)
+			c.Close()
+			return
+		}
+
 		logs.Trace("New socks5 connection,client %d,remote address %s", s.task.Client.Id, c.RemoteAddr())
 		s.handleConn(c)
-		s.task.Client.AddConn()
+		// s.task.Client.AddConn()
 	}, &s.listener)
 }
 

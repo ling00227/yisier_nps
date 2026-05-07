@@ -105,6 +105,7 @@ func (s *IndexController) Add() {
 			LocalPath:    s.getEscapeString("local_path"),
 			StripPre:     s.getEscapeString("strip_pre"),
 			ProtoVersion: s.getEscapeString("proto_version"),
+			MaxConn:      s.GetIntNoErr("max_conn"),
 			Flow:         &file.Flow{},
 		}
 
@@ -159,6 +160,7 @@ func (s *IndexController) Copy() {
 			LocalPath:    oldTask.LocalPath,
 			StripPre:     oldTask.StripPre,
 			ProtoVersion: oldTask.ProtoVersion,
+			MaxConn:      oldTask.MaxConn,
 			Flow:         &file.Flow{},
 		}
 		if !tool.TestServerPort(newTask.Port, newTask.Mode) {
@@ -232,6 +234,7 @@ func (s *IndexController) Edit() {
 			t.ProtoVersion = s.getEscapeString("proto_version")
 			t.StripPre = s.getEscapeString("strip_pre")
 			t.Remark = s.getEscapeString("remark")
+			t.MaxConn = s.GetIntNoErr("max_conn")
 			t.Target.LocalProxy = s.GetBoolNoErr("local_proxy")
 			file.GetDb().UpdateTask(t)
 			server.StopServer(t.Id)

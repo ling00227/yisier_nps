@@ -190,6 +190,13 @@ func NewConns(c1 io.ReadWriteCloser, c2 net.Conn, flow *file.Flow, wg *sync.Wait
 func copyConns(group interface{}) {
 	//logs.Info("copyConns.........")
 	conns := group.(Conns)
+	// 增加连接计数
+	if conns.task != nil {
+		conns.task.CutConn()
+		if conns.task.Client != nil {
+			conns.task.Client.CutConn()
+		}
+	}
 	wg := new(sync.WaitGroup)
 	wg.Add(2)
 	var in, out int64
@@ -202,6 +209,13 @@ func copyConns(group interface{}) {
 	//if conns.flow != nil {
 	//	conns.flow.Add(in, out)
 	//}
+	// 减少连接计数
+	if conns.task != nil {
+		conns.task.AddConn()
+		if conns.task.Client != nil {
+			conns.task.Client.AddConn()
+		}
+	}
 	conns.wg.Done()
 }
 

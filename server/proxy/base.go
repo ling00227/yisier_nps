@@ -85,6 +85,15 @@ func (s *BaseServer) CheckFlowAndConnNum(client *file.Client) error {
 	return nil
 }
 
+// check tunnel connection limit
+// 检查隧道连接数是否超过限制
+func (s *BaseServer) CheckTunnelConnNum() error {
+	if s.task.MaxConn > 0 && int(s.task.NowConn) >= s.task.MaxConn {
+		return errors.New("Connections exceed the current tunnel limit")
+	}
+	return nil
+}
+
 func in(target string, str_array []string) bool {
 	sort.Strings(str_array)
 	index := sort.SearchStrings(str_array, target)
